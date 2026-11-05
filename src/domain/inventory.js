@@ -42,6 +42,22 @@ function validatePositiveInteger(value, label) {
   }
 }
 
+function validateEventDate(value) {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value) ||
+    !Number.isFinite(Date.parse(value))
+  ) {
+    fail('Event date must be a valid ISO date.');
+  }
+
+  const dateOnly = value.slice(0, 10);
+  const parsedDate = new Date(`${dateOnly}T00:00:00.000Z`);
+  if (parsedDate.toISOString().slice(0, 10) !== dateOnly) {
+    fail('Event date must be a valid ISO date.');
+  }
+}
+
 function validateQuantity(quantity) {
   if (
     !Number.isSafeInteger(quantity) ||
@@ -78,11 +94,19 @@ export function createStore() {
 export function createEvent(store, input = {}) {
   validateStore(store);
   validateInputObject(input, 'Event input');
-  const { name } = input;
-  const eventName = validateNonEmptyString(name, 'Event name');
+  const { title, city, venue, date } = input;
+  const eventTitle = validateNonEmptyString(title, 'Event title');
+  const eventCity = validateNonEmptyString(city, 'Event city');
+  const eventVenue = validateNonEmptyString(venue, 'Event venue');
+  validateEventDate(date);
   const event = {
     id: newId(),
-    name: eventName,
+    title: eventTitle,
+    name: eventTitle,
+    city: eventCity,
+    venue: eventVenue,
+    date,
+    status: 'draft',
     tiers: new Map(),
   };
 
@@ -113,10 +137,71 @@ export function addTier(store, eventId, input = {}) {
     priceCents,
     capacity,
     remaining: capacity,
+    sold: 0,
   };
 
   event.tiers.set(tier.id, tier);
   return tier;
+}
+
+export function publishEvent(store, eventId) {
+  validateStore(store);
+  validateNonEmptyString(eventId, 'Event id');
+  const event = store.events.get(eventId);
+  if (!event) {
+    fail(`Event "${eventId}" was not found.`, 'NOT_FOUND');
+  }
+  if (event.tiers.size === 0) {
+    fail('An event must have at least one ticket tier before it can be published.', 'INVALID_STATE');
+  }
+
+  event.status = 'published';
+  return event;
+}
+
+export function unpublishEvent(store, eventId) {
+  validateStore(store);
+  validateNonEmptyString(eventId, 'Event id');
+  const event = store.events.get(eventId);
+  if (!event) {
+    fail(`Event "${eventId}" was not found.`, 'NOT_FOUND');
+  }
+
+  event.status = 'draft';
+  return event;
+}
+
+export function listEventSummaries(store, options = {}) {
+  validateStore(store);
+  validateInputObject(options, 'List options');
+  const { publishedOnly = true } = options;
+  if (typeof publishedOnly !== 'boolean') {
+    fail('publishedOnly must be a boolean.');
+  }
+
+  const summaries = [];
+  for (const event of store.events.values()) {
+    if (publishedOnly && event.status !== 'published') continue;
+
+    summaries.push({
+      id: event.id,
+      title: event.title,
+      city: event.city,
+      venue: event.venue,
+      date: event.date,
+      status: event.status,
+      tiers: [...event.tiers.values()].map((tier) => ({
+        id: tier.id,
+        name: tier.name,
+        priceCents: tier.priceCents,
+        capacity: tier.capacity,
+        remaining: tier.remaining,
+        sold: tier.sold,
+      })),
+    });
+  }
+
+  return summaries;
 }
 
 export function bookTickets(store, input = {}) {
@@ -127,6 +212,14 @@ export function bookTickets(store, input = {}) {
   validateNonEmptyString(tierId, 'Tier id');
   const name = validateNonEmptyString(attendeeName, 'Attendee name');
   validateQuantity(quantity);
+
+  const event = store.events.get(eventId);
+  if (!event) {
+    fail(`Event "${eventId}" was not found.`, 'NOT_FOUND');
+  }
+  if (event.status !== 'published') {
+    fail('Tickets can only be booked for published events.', 'INVALID_STATE');
+  }
 
   const tier = findTier(store, eventId, tierId);
   if (tier.remaining < quantity) {
@@ -154,10 +247,11 @@ export function bookTickets(store, input = {}) {
     attendeeName: name,
     quantity,
     totalCents,
-    status: 'CONFIRMED',
+    status: 'PENDING',
   };
 
   tier.remaining -= quantity;
+  tier.sold += quantity;
   store.bookingsById.set(booking.id, booking);
   store.bookingsByReference.set(booking.reference, booking);
   return booking;
@@ -178,6 +272,7 @@ export function cancelBooking(store, bookingId) {
   const tier = findTier(store, booking.eventId, booking.tierId);
   booking.status = 'CANCELLED';
   tier.remaining += booking.quantity;
+  tier.sold -= booking.quantity;
   return booking;
 }
 
