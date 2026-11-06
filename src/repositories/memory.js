@@ -51,4 +51,14 @@ export class MemoryRepository {
     this.#bookings.set(booking.reference, copy(booking));
     return copy(booking);
   }
+
+  async reserveAndSaveBooking(tierId, quantity, booking) {
+    const tier = this.#tiers.get(tierId);
+    if (!tier || tier.remaining < quantity) return undefined;
+
+    tier.remaining -= quantity;
+    tier.sold += quantity;
+    this.#bookings.set(booking.reference, copy(booking));
+    return copy(booking);
+  }
 }

@@ -59,9 +59,6 @@ export function createBookingService(repository, paymentGateway) {
       }
       const tier = await repository.findTierForEvent(event.id, input.tierId);
       if (!tier) fail(`Ticket tier "${input.tierId}" was not found for this event.`, 'NOT_FOUND');
-      if (tier.remaining < input.quantity) {
-        fail(`Only ${tier.remaining} ticket(s) remain in "${tier.name}".`, 'SOLD_OUT');
-      }
 
       const totalCents = tier.priceCents * input.quantity;
       if (!Number.isSafeInteger(totalCents)) {
@@ -83,11 +80,15 @@ export function createBookingService(repository, paymentGateway) {
         status: 'pending',
       };
 
-      tier.remaining -= input.quantity;
-      tier.sold += input.quantity;
-      await repository.saveTier(tier);
-      await repository.saveBooking(booking);
-      return booking;
+      const reservedBooking = await repository.reserveAndSaveBooking(
+        tier.id,
+        input.quantity,
+        booking,
+      );
+      if (!reservedBooking) {
+        fail(`Tickets are no longer available in "${tier.name}".`, 'SOLD_OUT');
+      }
+      return reservedBooking;
     },
 
     async getBooking(userId, reference) {
