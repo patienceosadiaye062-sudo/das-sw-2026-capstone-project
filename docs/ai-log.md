@@ -39,3 +39,28 @@
 - **Asked:** Check every state transition and server requirement, run the tests, and verify the actual `npm start` server responds on `/health`.
 - **What came back:** All required behaviors passed; the live health endpoint returned HTTP 200 with `{"status":"ok"}`.
 - **What was wrong or changed:** Review found inherited JavaScript object property names could be treated as booking states. Transition lookup now checks own keys, and tests cover those names. Added a check that internal errors do not expose stack details. All 42 tests pass; the Build 1 demo and whitespace/syntax checks pass as well.
+
+## Build 4 — Working REST API (in memory)
+
+### Prompt 1 — Implement Build 4
+
+- **Asked:** Add an asynchronous in-memory repository, event and booking
+  services, mock payment, REST routes, API examples, and API-level tests while
+  following the project layer rules.
+- **What came back:** Added the repository, services, mock payment gateway,
+  route registration and OpenAPI document, connected them to the HTTP server,
+  and added API tests and `curl` examples.
+- **What was wrong or changed:** The requested `README.md` and
+  `docs/user-stories.md` files do not exist in this workspace. The supplied
+  Build 4 prompt and the existing Build 2 criteria were used as the
+  specification, and the missing-input note was recorded in `docs/build-4.md`.
+  The mock gateway accepts only a boolean `decline` flag and no card details.
+- **Follow-up:** Build 4 initially documented only `curl` examples. The user
+  noted Hoppscotch should be included; expanded the served OpenAPI document and
+  added Hoppscotch import instructions to the API examples and Build 4 checklist.
+- **Follow-up:** The user clarified they expected Hoppscotch import files.
+  Added a Hoppscotch collection and local environment at the repository root,
+  documented their import/use, and added a test that checks the files and
+  workflow requests.
+- **Correction:** The user clarified both Hoppscotch files should be under
+  `docs/hoppscotch/`; moved them there and updated their links and test paths.

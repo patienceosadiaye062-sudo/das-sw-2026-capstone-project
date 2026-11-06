@@ -2,10 +2,28 @@ import { createServer } from 'node:http';
 import { realpath, readFile, stat } from 'node:fs/promises';
 import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DomainError } from '../domain/errors.js';
+import { createMockPaymentGateway } from '../lib/mockPaymentGateway.js';
+import { MemoryRepository } from '../repositories/memory.js';
+import { createBookingService } from '../services/bookingService.js';
+import { createEventService } from '../services/eventService.js';
 import { Router } from './router.js';
+import { registerApiRoutes } from './routes.js';
 
 const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL('../../public/', import.meta.url));
 const MAX_BODY_BYTES = 1024 * 1024;
+const STATUS_BY_CODE = {
+  VALIDATION: 400,
+  INVALID_JSON: 400,
+  BAD_PATH: 400,
+  UNAUTHENTICATED: 401,
+  PAYMENT_DECLINED: 402,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  SOLD_OUT: 409,
+  INVALID_STATE: 409,
+  INVALID_TRANSITION: 409,
+};
 const CONTENT_TYPES = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
@@ -100,13 +118,24 @@ async function serveStatic(request, response, pathname, publicDir) {
   response.end(request.method === 'HEAD' ? undefined : content);
 }
 
-export function createApp({ publicDir = DEFAULT_PUBLIC_DIR, router = new Router() } = {}) {
+export function createApp({
+  publicDir = DEFAULT_PUBLIC_DIR,
+  router = new Router(),
+  repository = new MemoryRepository(),
+  paymentGateway = createMockPaymentGateway(),
+} = {}) {
   if (!(router instanceof Router)) {
     throw new TypeError('router must be a Router.');
   }
 
-  router.add('GET', '/health', ({ response }) => {
-    sendJson(response, 200, { status: 'ok' });
+  if (!router.match('GET', '/health')) {
+    router.add('GET', '/health', ({ response }) => {
+      sendJson(response, 200, { status: 'ok' });
+    });
+  }
+  registerApiRoutes(router, {
+    eventService: createEventService(repository),
+    bookingService: createBookingService(repository, paymentGateway),
   });
 
   return createServer(async (request, response) => {
@@ -115,13 +144,20 @@ export function createApp({ publicDir = DEFAULT_PUBLIC_DIR, router = new Router(
       const body = await readJsonBody(request);
       const match = router.match(request.method, url.pathname);
       if (match) {
-        await match.handler({
+        const result = await match.handler({
           request,
           response,
           params: match.params,
           body,
           url,
         });
+        if (!response.writableEnded && result !== undefined) {
+          if (result && Number.isInteger(result.status) && Object.hasOwn(result, 'body')) {
+            sendJson(response, result.status, result.body);
+          } else {
+            sendJson(response, 200, result);
+          }
+        }
         return;
       }
 
@@ -146,7 +182,9 @@ export function createApp({ publicDir = DEFAULT_PUBLIC_DIR, router = new Router(
         return;
       }
 
-      const status = Number.isInteger(error.status) ? error.status : 500;
+      const status = error instanceof DomainError
+        ? STATUS_BY_CODE[error.code] ?? 400
+        : Number.isInteger(error.status) ? error.status : 500;
       const code = typeof error.code === 'string' ? error.code : 'INTERNAL_ERROR';
       const message = status === 500 ? 'Internal server error.' : error.message;
       if (status === 500) console.error(error);

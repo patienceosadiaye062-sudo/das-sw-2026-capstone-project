@@ -1,0 +1,42 @@
+{
+  "v": 1,
+  "name": "Local",
+  "variables": [
+    {
+      "key": "baseUrl",
+      "initialValue": "http://localhost:3000",
+      "currentValue": "http://localhost:3000",
+      "secret": false
+    },
+    {
+      "key": "organizerId",
+      "initialValue": "organizer-1",
+      "currentValue": "organizer-1",
+      "secret": false
+    },
+    {
+      "key": "attendeeId",
+      "initialValue": "attendee-1",
+      "currentValue": "attendee-1",
+      "secret": false
+    },
+    {
+      "key": "eventId",
+      "initialValue": "REPLACE_WITH_CREATED_EVENT_ID",
+      "currentValue": "REPLACE_WITH_CREATED_EVENT_ID",
+      "secret": false
+    },
+    {
+      "key": "tierId",
+      "initialValue": "REPLACE_WITH_CREATED_TIER_ID",
+      "currentValue": "REPLACE_WITH_CREATED_TIER_ID",
+      "secret": false
+    },
+    {
+      "key": "bookingReference",
+      "initialValue": "REPLACE_WITH_CREATED_BOOKING_REFERENCE",
+      "currentValue": "REPLACE_WITH_CREATED_BOOKING_REFERENCE",
+      "secret": false
+    }
+  ]
+}

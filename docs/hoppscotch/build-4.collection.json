@@ -1,0 +1,214 @@
+{
+  "v": 2,
+  "name": "Build 4 - Event Ticketing API",
+  "folders": [
+    {
+      "v": 2,
+      "name": "Events",
+      "folders": [],
+      "requests": [
+        {
+          "v": "2",
+          "name": "Create event",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/events",
+          "params": [],
+          "headers": [
+            { "key": "content-type", "value": "application/json", "active": true },
+            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Lagos Tech Meetup\",\n  \"city\": \"Lagos\",\n  \"venue\": \"Civic Centre\",\n  \"date\": \"2026-12-05T17:00:00\"\n}"
+          },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Add ticket tier",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/events/<<eventId>>/tiers",
+          "params": [],
+          "headers": [
+            { "key": "content-type", "value": "application/json", "active": true },
+            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"General\",\n  \"priceCents\": 2500,\n  \"capacity\": 100\n}"
+          },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Publish event",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/events/<<eventId>>/publish",
+          "params": [],
+          "headers": [
+            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "" },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Unpublish event",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/events/<<eventId>>/unpublish",
+          "params": [],
+          "headers": [
+            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "" },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Get event",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/api/events/<<eventId>>",
+          "params": [],
+          "headers": [
+            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "" },
+          "requestVariables": []
+        }
+      ]
+    },
+    {
+      "v": 2,
+      "name": "Events - public search",
+      "folders": [],
+      "requests": [
+        {
+          "v": "2",
+          "name": "Search published events",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/api/events",
+          "params": [
+            { "key": "q", "value": "meetup", "active": true },
+            { "key": "city", "value": "lagos", "active": true },
+            { "key": "sort", "value": "date", "active": true },
+            { "key": "maxPriceCents", "value": "5000", "active": true },
+            { "key": "onlyAvailable", "value": "true", "active": true }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "" },
+          "requestVariables": []
+        }
+      ]
+    },
+    {
+      "v": 2,
+      "name": "Bookings",
+      "folders": [],
+      "requests": [
+        {
+          "v": "2",
+          "name": "Create booking",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/bookings",
+          "params": [],
+          "headers": [
+            { "key": "content-type", "value": "application/json", "active": true },
+            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"eventId\": \"<<eventId>>\",\n  \"tierId\": \"<<tierId>>\",\n  \"quantity\": 2\n}"
+          },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Get booking",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/api/bookings/<<bookingReference>>",
+          "params": [],
+          "headers": [
+            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "" },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Pay booking",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/bookings/<<bookingReference>>/pay",
+          "params": [],
+          "headers": [
+            { "key": "content-type", "value": "application/json", "active": true },
+            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{}" },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Declined payment (retryable)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/bookings/<<bookingReference>>/pay",
+          "params": [],
+          "headers": [
+            { "key": "content-type", "value": "application/json", "active": true },
+            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"decline\": true\n}"
+          },
+          "requestVariables": []
+        },
+        {
+          "v": "2",
+          "name": "Cancel unpaid booking",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/bookings/<<bookingReference>>/cancel",
+          "params": [],
+          "headers": [
+            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "" },
+          "requestVariables": []
+        }
+      ]
+    }
+  ],
+  "requests": []
+}
