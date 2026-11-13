@@ -72,3 +72,20 @@
 - **Asked:** Read the project brief and all of `src/`, add a constrained SQLite schema and repository, persist API data, seed sample events, and demonstrate 50 simultaneous requests for one seat. Then make the reservation atomic and add a test that fails if the fix is removed.
 - **What came back:** This workspace has no `README.md` or `docs/user-stories.md`, and `docs/build-5.md` was empty. The API still used only `MemoryRepository`; booking checked the tier and saved it in a later operation. Node 24.21.0 supports the built-in `node:sqlite` module.
 - **What was wrong or changed:** Added SQLite storage with parameterized statements and schema constraints. Booking reservation and booking insertion now run transactionally around one conditional capacity update. The memory repository also implements atomic reservation for API tests. Added a 50-request oversell test and a demo that compares the old read/check/write behavior with the fixed SQLite behavior, a seed command, and close/reopen persistence tests. The database creates organizer and attendee user rows as records are written because the current API identifies users by `x-user-id` and does not yet have signup or user creation routes. The supplied Build 5 brief was used instead of the missing project files.
+
+## Build 6 — Frontend on mock data
+
+### Prompt 1 — Build the attendee website
+
+- **Asked:** Read `README.md`, `docs/user-stories.md`, `docs/build-6.md` and
+  `docs/api-examples.md`, then build the plain HTML/CSS/ES-module frontend
+  with browsing, event details, booking, countdown and mock payment.
+- **What came back:** `README.md` and `docs/user-stories.md` are absent, and
+  `docs/build-6.md` was empty. The provided task text and the existing
+  `docs/api-examples.md` were used as the specification.
+- **What was wrong or changed:** The backend's real mock-payment API accepts a
+  `decline` boolean and does not accept card details. The frontend maps a
+  test-card number ending in `0000` to that boolean locally; no card number is
+  sent or stored. Prices are formatted from cents, so `250000` displays as
+  NGN 2,500.00. Added the missing Build 6 checklist and tests for event
+  filtering, invalid quantities, sold-out tiers, and declined-payment retry.
