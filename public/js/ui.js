@@ -30,17 +30,23 @@ export function formatPrice(priceCents) {
   return new Intl.NumberFormat('en-NG', {
     style: 'currency',
     currency: 'NGN',
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(priceCents / 100);
 }
 
 export function formatDate(date) {
-  return new Intl.DateTimeFormat('en-NG', {
-    weekday: 'long',
+  const dateText = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos',
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
   }).format(new Date(date));
+  const timeText = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(date));
+  return `${dateText}, ${timeText}`;
 }

@@ -63,13 +63,14 @@ a { color: inherit; }
 }
 .filters {
   display: grid;
-  grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(140px, 1fr));
+  grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(140px, 1fr)) auto;
   gap: 14px;
   padding: 18px;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: 14px;
 }
+.apply-filters { align-self: end; }
 .field { display: flex; flex-direction: column; gap: 7px; }
 .field label, .tier-booking label { font-size: .82rem; font-weight: 600; }
 .field input, .field select, .tier-booking input {

@@ -29,7 +29,7 @@
         <form id="filters" class="filters">
           <div class="field">
             <label for="search">Search events</label>
-            <input id="search" name="q" type="search" placeholder="Artist, event or venue">
+            <input id="search" name="q" type="search" placeholder="Title or venue">
           </div>
           <div class="field">
             <label for="city">City</label>
@@ -38,17 +38,18 @@
             </select>
           </div>
           <div class="field">
-            <label for="maximum-price">Maximum price (NGN)</label>
-            <input id="maximum-price" name="maxPrice" type="number" min="0" step="0.01" placeholder="Any price">
+            <label for="maximum-price">Maximum price (₦)</label>
+            <input id="maximum-price" name="maxPrice" type="number" min="0" step="0.01" placeholder="Any">
           </div>
           <div class="field">
             <label for="sort">Sort by</label>
             <select id="sort" name="sort">
-              <option value="date">Soonest</option>
+              <option value="date">Date</option>
               <option value="price">Lowest price</option>
               <option value="availability">Most available</option>
             </select>
           </div>
+          <button class="button button-primary apply-filters" type="submit">Apply</button>
         </form>
         <p id="results-count" class="results-count" aria-live="polite"></p>
         <div id="events" class="event-grid" aria-live="polite"></div>

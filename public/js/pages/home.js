@@ -23,7 +23,7 @@ function renderCard(event) {
           el('span', { className: 'muted' }, 'From '),
           formatPrice(price),
         ]),
-        el('p', { className: 'availability' }, available ? `${available} tickets left` : 'Sold out'),
+        el('p', { className: 'availability' }, available ? `${available} seats left` : 'Sold out'),
       ]),
       el('a', { className: 'button button-secondary', href: `/event.html?id=${encodeURIComponent(event.id)}` }, 'Explore event'),
     ]),
@@ -50,7 +50,7 @@ async function updateEvents() {
       sort: data.get('sort'),
     });
     eventList.replaceChildren(...events.map(renderCard));
-    resultsCount.textContent = `${events.length} ${events.length === 1 ? 'event' : 'events'} to explore`;
+    resultsCount.textContent = `${events.length} event(s) found`;
     if (!events.length) {
       eventList.append(el('p', { className: 'empty-state' }, 'No events match those filters. Try broadening your search.'));
     }
@@ -62,6 +62,8 @@ async function updateEvents() {
 
 const { events: allEvents } = await listEvents();
 populateCities(allEvents);
-filters.addEventListener('input', updateEvents);
-filters.addEventListener('change', updateEvents);
+filters.addEventListener('submit', (event) => {
+  event.preventDefault();
+  updateEvents();
+});
 updateEvents();
