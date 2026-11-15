@@ -43,6 +43,7 @@ async function updateEvents() {
   const maximum = data.get('maxPrice');
   const maxPriceCents = maximum === '' ? undefined : Math.round(Number(maximum) * 100);
   try {
+    resultsCount.textContent = 'Loading events…';
     const { events } = await listEvents({
       q: data.get('q'),
       city: data.get('city'),
@@ -60,10 +61,20 @@ async function updateEvents() {
   }
 }
 
-const { events: allEvents } = await listEvents();
-populateCities(allEvents);
 filters.addEventListener('submit', (event) => {
   event.preventDefault();
   updateEvents();
 });
-updateEvents();
+
+try {
+  resultsCount.textContent = 'Loading events…';
+  const { events: allEvents } = await listEvents();
+  populateCities(allEvents);
+  eventList.replaceChildren(...allEvents.map(renderCard));
+  resultsCount.textContent = `${allEvents.length} event(s) found`;
+  if (!allEvents.length) {
+    eventList.append(el('p', { className: 'empty-state' }, 'No events are published yet.'));
+  }
+} catch (error) {
+  resultsCount.textContent = error.message ?? 'Events could not be loaded.';
+}

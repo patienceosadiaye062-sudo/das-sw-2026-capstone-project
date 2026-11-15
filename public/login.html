@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sign in or create a Gather account.">
+    <title>Sign in | Gather</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/pages/login.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Gather<span aria-hidden="true">.</span></a>
+      <nav class="site-nav"><a href="/">Browse events</a></nav>
+    </header>
+    <main class="page-shell">
+      <section class="intro">
+        <p class="eyebrow">Welcome to Gather</p>
+        <h1>Good to see you.</h1>
+      </section>
+      <p id="auth-message" class="notice" role="status" aria-live="polite"></p>
+      <div class="auth-grid">
+        <form id="login-form" class="form-panel">
+          <h2>Log in</h2>
+          <label class="field">Email
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <label class="field">Password
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="button button-primary" type="submit">Log in</button>
+        </form>
+        <form id="signup-form" class="form-panel">
+          <h2>Create account</h2>
+          <label class="field">Email
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <label class="field">Password (at least 8 characters)
+            <input name="password" type="password" minlength="8" autocomplete="new-password" required>
+          </label>
+          <label class="field">I am joining as
+            <select name="role" required>
+              <option value="attendee">Attendee</option>
+              <option value="organizer">Organizer</option>
+              <option value="staff">Staff</option>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Sign up</button>
+        </form>
+      </div>
+    </main>
+    <footer class="site-footer"><p>Good times start here.</p></footer>
+  </body>
+</html>

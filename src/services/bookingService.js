@@ -10,7 +10,7 @@ function fail(message, code = 'VALIDATION') {
 
 function requireUserId(userId) {
   if (typeof userId !== 'string' || userId.trim() === '') {
-    fail('The x-user-id header is required.', 'UNAUTHENTICATED');
+    fail('A valid user identity is required.', 'UNAUTHENTICATED');
   }
   return userId.trim();
 }
@@ -23,7 +23,7 @@ function requireObject(value, label) {
 
 function requireBookingOwner(booking, userId) {
   if (booking.userId !== userId) {
-    fail('This booking belongs to another user.', 'FORBIDDEN');
+    fail('Booking was not found.', 'NOT_FOUND');
   }
 }
 
@@ -96,6 +96,11 @@ export function createBookingService(repository, paymentGateway) {
       const booking = bookingOrFail(await repository.findBookingByReference(reference));
       requireBookingOwner(booking, attendeeId);
       return booking;
+    },
+
+    async listBookings(userId) {
+      const attendeeId = requireUserId(userId);
+      return repository.listBookingsForUser(attendeeId);
     },
 
     async pay(userId, reference, input = {}) {

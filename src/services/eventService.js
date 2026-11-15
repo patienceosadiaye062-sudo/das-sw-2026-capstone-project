@@ -8,7 +8,7 @@ function fail(message, code = 'VALIDATION') {
 
 function requireUserId(userId) {
   if (typeof userId !== 'string' || userId.trim() === '') {
-    fail('The x-user-id header is required.', 'UNAUTHENTICATED');
+    fail('A valid user identity is required.', 'UNAUTHENTICATED');
   }
   return userId.trim();
 }
@@ -148,6 +148,15 @@ export function createEventService(repository) {
         requireOrganizer(event, requireUserId(userId));
       }
       return eventView(event, await repository.listTiersForEvent(event.id));
+    },
+
+    async listOrganizerEvents(userId) {
+      const organizerId = requireUserId(userId);
+      const events = (await repository.listEvents())
+        .filter((event) => event.organizerId === organizerId);
+      return Promise.all(events.map(async (event) => (
+        eventView(event, await repository.listTiersForEvent(event.id))
+      )));
     },
   };
 }

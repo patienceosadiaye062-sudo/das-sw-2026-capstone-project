@@ -89,3 +89,20 @@
   sent or stored. Prices are formatted from cents, so `250000` displays as
   NGN 2,500.00. Added the missing Build 6 checklist and tests for event
   filtering, invalid quantities, sold-out tiers, and declined-payment retry.
+
+## Build 7 — Login, roles and connected app
+
+### Prompt 1 — Implement Build 7
+
+- **Asked:** Add password hashing, signed expiring tokens, authentication,
+  server-enforced roles and ownership, authenticated booking lists, and connect
+  the browser to the API with login, tickets, and organizer screens.
+- **What came back:** Added the authentication modules and routes, extended both
+  repositories for accounts and user booking lists, replaced the mock browser
+  API with `fetch`, and added the requested pages and tests.
+- **What was wrong or changed:** `README.md` and `docs/user-stories.md` are
+  absent, and `docs/build-7.md` was empty. Used the Build 7 criteria provided
+  in the task and recorded them in `docs/build-7.md`. Existing user rows are
+  migrated by adding nullable email/hash columns so prior event/booking data
+  remains intact. The server requires `TOKEN_SECRET` (at least 32 bytes); the
+  mock card UI sends only the gateway's boolean decline flag.

@@ -1,10 +1,10 @@
 import { createBooking, getEvent, pay } from '../api.js';
+import { getUser } from '../session.js';
 import { el, formatDate, formatPrice } from '../ui.js';
 
 const eventId = new URLSearchParams(location.search).get('id');
 const content = document.querySelector('#event-content');
 const pageMessage = document.querySelector('#page-message');
-const ATTENDEE_ID = 'attendee-1';
 const HOLD_SECONDS = 10 * 60;
 let bookingInProgress = false;
 let bookingComplete = false;
@@ -20,6 +20,21 @@ function getErrorMessage(error) {
 
 function renderTier(event, tier) {
   const soldOut = tier.remaining === 0;
+  const user = getUser();
+  if (!user || user.role !== 'attendee') {
+    const signInLink = el('a', {
+      className: 'button button-secondary',
+      href: `/login.html?returnTo=${encodeURIComponent(`/event.html?id=${event.id}`)}`,
+    }, user ? 'Attendee account required' : 'Log in to book');
+    return el('article', { className: 'tier-card' }, [
+      el('div', {}, [
+        el('h3', {}, tier.name),
+        el('p', { className: 'tier-price' }, formatPrice(tier.priceCents)),
+        el('p', { className: 'muted' }, soldOut ? 'Sold out' : `${tier.remaining} available`),
+      ]),
+      signInLink,
+    ]);
+  }
   const quantityId = `quantity-${tier.id}`;
   const status = soldOut
     ? el('span', { className: 'status-pill sold-out' }, 'Sold out')
@@ -69,7 +84,7 @@ function renderTier(event, tier) {
         eventId: event.id,
         tierId: tier.id,
         quantity,
-      }, ATTENDEE_ID);
+      });
       bookingInProgress = false;
       bookingComplete = true;
       renderCheckout(event, tier, booking);
@@ -153,7 +168,7 @@ function renderCheckout(event, tier, booking) {
     const decline = cardNumber.value.endsWith('0000');
     payButton.disabled = true;
     try {
-      await pay(booking.reference, { decline }, ATTENDEE_ID);
+      await pay(booking.reference, { decline });
       window.clearInterval(timer);
       countdown.textContent = 'Payment complete. Your tickets are confirmed.';
       paymentStatus.textContent = `Booking ${booking.reference} is confirmed. See you there!`;
@@ -201,8 +216,10 @@ function renderEvent(event) {
 if (!eventId) {
   showMessage('No event was selected.');
 } else {
+  showMessage('Loading event details…', 'success');
   try {
     renderEvent(await getEvent(eventId));
+    pageMessage.textContent = '';
   } catch (error) {
     showMessage(getErrorMessage(error));
   }

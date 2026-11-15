@@ -30,9 +30,10 @@ Stories S02 to S06 must work through the API using the acceptance criteria in
 - **Given** a paid booking, **when** someone pays again, **then** the request is
   rejected and the gateway is not charged again.
 
-Until Build 7 adds login, requests identify users with the `x-user-id` header.
-Only the user who created a booking can read, pay for, or cancel it. The mock
-payment gateway never receives card numbers.
+Build 4 originally identified users with an `x-user-id` header; Build 7 replaces
+that development mechanism with signed bearer tokens and server-enforced roles.
+Only the attendee who created a booking can read, pay for, or cancel it. The
+mock payment gateway never receives card numbers.
 
 ## Definition of done
 
@@ -40,6 +41,8 @@ payment gateway never receives card numbers.
 - The OpenAPI document is available for importing and trying requests in Hoppscotch.
 - The [Hoppscotch collection](./hoppscotch/build-4.collection.json) and
   [local environment](./hoppscotch/local.environment.json) cover the Build 4 API workflow.
+- For the Build 7 API, use the bearer-token examples in [API examples](./api-examples.md)
+  and paste organizer/attendee tokens into the Hoppscotch local environment.
 - Errors use the same JSON shape.
 - `npm test` includes API-level tests using the real server.
 - The project Definition of Done in `user-stories.md` applies where available.

@@ -7,6 +7,8 @@ import { createMockPaymentGateway } from '../lib/mockPaymentGateway.js';
 import { MemoryRepository } from '../repositories/memory.js';
 import { createBookingService } from '../services/bookingService.js';
 import { createEventService } from '../services/eventService.js';
+import { createAuthService } from '../services/authService.js';
+import { registerAuthRoutes } from '../routes/auth.js';
 import { Router } from './router.js';
 import { registerApiRoutes } from './routes.js';
 
@@ -17,6 +19,8 @@ const STATUS_BY_CODE = {
   INVALID_JSON: 400,
   BAD_PATH: 400,
   UNAUTHENTICATED: 401,
+  INVALID_CREDENTIALS: 401,
+  EMAIL_TAKEN: 409,
   PAYMENT_DECLINED: 402,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
@@ -123,6 +127,7 @@ export function createApp({
   router = new Router(),
   repository = new MemoryRepository(),
   paymentGateway = createMockPaymentGateway(),
+  tokenSecret = process.env.TOKEN_SECRET,
 } = {}) {
   if (!(router instanceof Router)) {
     throw new TypeError('router must be a Router.');
@@ -136,6 +141,11 @@ export function createApp({
   registerApiRoutes(router, {
     eventService: createEventService(repository),
     bookingService: createBookingService(repository, paymentGateway),
+    tokenSecret,
+  });
+  registerAuthRoutes(router, {
+    authService: createAuthService(repository, tokenSecret),
+    tokenSecret,
   });
 
   return createServer(async (request, response) => {

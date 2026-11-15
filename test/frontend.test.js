@@ -1,79 +1,121 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { createBooking, listEvents, pay } from '../public/js/api.js';
-import { resetMockData } from '../public/js/mockData.js';
+import {
+  createBooking,
+  listEvents,
+  listMyBookings,
+  logIn,
+  pay,
+  signUp,
+} from '../public/js/api.js';
+import {
+  clearSession,
+  getSession,
+  getToken,
+  getUser,
+  setSession,
+} from '../public/js/session.js';
 import { formatDate, formatPrice } from '../public/js/ui.js';
 
-afterEach(() => resetMockData());
+const originalFetch = globalThis.fetch;
+const originalLocalStorage = globalThis.localStorage;
+
+function installStorage() {
+  const values = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: (key) => values.delete(key),
+  };
+}
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  if (originalLocalStorage === undefined) delete globalThis.localStorage;
+  else globalThis.localStorage = originalLocalStorage;
+});
 
 test('formats whole-cent prices as NGN and omits unnecessary decimal zeros', () => {
   assert.equal(formatPrice(250000), '₦2,500');
   assert.equal(formatPrice(250050), '₦2,500.5');
 });
 
-test('formats event dates in the boss example timezone and style', () => {
+test('formats event dates in the configured timezone and style', () => {
   assert.equal(formatDate('2026-12-05T17:00:00Z'), '5 Dec 2026, 18:00');
 });
 
-test('mock event listing searches, filters by city and maximum price, and sorts', async () => {
-  const { events } = await listEvents({
-    q: 'jazz',
-    city: 'abuja',
-    maxPriceCents: 800000,
-    sort: 'price',
+test('session stores only the signed token and safe user details', () => {
+  installStorage();
+  const session = {
+    token: 'signed-token',
+    user: { id: 'user-1', email: 'person@example.test', role: 'attendee' },
+  };
+  setSession(session);
+
+  assert.deepEqual(getSession(), session);
+  assert.equal(getToken(), 'signed-token');
+  assert.equal(getUser().role, 'attendee');
+  clearSession();
+  assert.equal(getSession(), undefined);
+});
+
+test('signup and login send credentials to the API and store returned sessions', async () => {
+  installStorage();
+  const calls = [];
+  globalThis.fetch = async (path, options) => {
+    calls.push({ path, options });
+    return {
+      ok: true,
+      json: async () => ({
+        token: 'api-token',
+        user: { id: 'user-1', email: 'person@example.test', role: 'attendee' },
+      }),
+    };
+  };
+  await signUp({ email: 'person@example.test', password: 'strong-password', role: 'attendee' });
+  assert.equal(calls[0].path, '/api/auth/signup');
+  assert.equal(calls[0].options.headers.authorization, undefined);
+  assert.equal(getToken(), 'api-token');
+
+  await logIn({ email: 'person@example.test', password: 'strong-password' });
+  assert.equal(calls[1].path, '/api/auth/login');
+  assert.equal(getUser().email, 'person@example.test');
+});
+
+test('frontend API uses bearer auth, query parameters, and sends no payment-card data', async () => {
+  installStorage();
+  setSession({
+    token: 'signed-token',
+    user: { id: 'user-1', email: 'person@example.test', role: 'attendee' },
   });
+  const calls = [];
+  globalThis.fetch = async (path, options) => {
+    calls.push({ path, options });
+    return { ok: true, json: async () => ({ events: [], bookings: [] }) };
+  };
 
-  assert.equal(events.length, 1);
-  assert.equal(events[0].id, 'abuja-jazz-night');
-  assert.equal(events[0].tiers[0].priceCents, 800000);
+  await listEvents({ q: 'jazz', city: 'Abuja', maxPriceCents: 800000 });
+  assert.match(calls[0].path, /q=jazz/);
+  assert.match(calls[0].path, /city=Abuja/);
+  await createBooking({ eventId: 'event-1', tierId: 'tier-1', quantity: 1 });
+  assert.equal(calls[1].options.headers.authorization, 'Bearer signed-token');
+  await pay('booking-1', { decline: true });
+  assert.deepEqual(JSON.parse(calls[2].options.body), { decline: true });
+  assert.equal(calls[2].options.body.includes('card'), false);
+  await listMyBookings();
+  assert.equal(calls[3].path, '/api/bookings');
 });
 
-test('mock event list matches the five Build 6 sample events', async () => {
-  const { events } = await listEvents();
-
-  assert.deepEqual(events.map((event) => event.title), [
-    'Lagos Tech Meetup',
-    'Abuja Jazz Night',
-    'Ibadan Food Fair',
-    'Enugu Comedy Night',
-    'Sold Out Live Concert',
-  ]);
-  assert.deepEqual(events.map((event) => event.tiers.reduce((sum, tier) => sum + tier.remaining, 0)), [
-    60, 67, 380, 4, 0,
-  ]);
-  assert.equal(events[3].city, 'Enugu');
-  assert.equal(events[3].venue, 'Michael Okpara Square');
-});
-
-test('mock booking rejects quantities above ten and does not reserve seats', async () => {
-  await assert.rejects(
-    createBooking({ eventId: 'lagos-tech-meetup', tierId: 'lagos-general', quantity: 11 }),
-    (error) => error.error.code === 'VALIDATION',
-  );
-  const { events } = await listEvents({ city: 'Lagos' });
-  assert.equal(events[0].tiers[0].remaining, 60);
-});
-
-test('sold-out tiers reject bookings without changing inventory', async () => {
-  await assert.rejects(
-    createBooking({ eventId: 'lagos-tech-meetup', tierId: 'lagos-vip', quantity: 1 }),
-    (error) => error.error.code === 'SOLD_OUT',
-  );
-  const { events } = await listEvents({ city: 'Lagos' });
-  assert.equal(events[0].tiers[1].remaining, 0);
-});
-
-test('declined payment leaves a booking pending and successful retry confirms it', async () => {
-  const booking = await createBooking({
-    eventId: 'lagos-tech-meetup',
-    tierId: 'lagos-general',
-    quantity: 2,
+test('frontend surfaces structured API errors', async () => {
+  installStorage();
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 401,
+    json: async () => ({ error: { code: 'UNAUTHENTICATED', message: 'Sign in required.' } }),
   });
-
-  await assert.rejects(pay(booking.reference, { decline: true }), (error) => (
-    error.error.code === 'PAYMENT_DECLINED' && error.status === 402
+  await assert.rejects(listMyBookings(), (error) => (
+    error.status === 401 &&
+    error.error.code === 'UNAUTHENTICATED' &&
+    error.message === 'Sign in required.'
   ));
-  const paidBooking = await pay(booking.reference);
-  assert.equal(paidBooking.status, 'paid');
-  assert.equal(paidBooking.totalCents, 1000000);
 });

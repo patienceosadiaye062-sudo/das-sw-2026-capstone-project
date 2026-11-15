@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Create and publish events on Gather.">
+    <title>Organizer dashboard | Gather</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/pages/organizer.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Gather<span aria-hidden="true">.</span></a>
+      <nav class="site-nav"><a href="/">Browse events</a><a href="/tickets.html">My tickets</a></nav>
+    </header>
+    <main class="page-shell">
+      <section class="intro">
+        <p class="eyebrow">For hosts</p>
+        <h1>Organizer dashboard</h1>
+      </section>
+      <p id="organizer-message" class="notice" role="status" aria-live="polite"></p>
+      <form id="event-form" class="form-panel">
+        <h2>Create an event</h2>
+        <label class="field">Title<input name="title" required></label>
+        <label class="field">City<input name="city" required></label>
+        <label class="field">Venue<input name="venue" required></label>
+        <label class="field">Date and time<input name="date" type="datetime-local" required></label>
+        <button class="button button-primary" type="submit">Create draft</button>
+      </form>
+      <section class="organizer-events" aria-labelledby="organizer-events-heading">
+        <h2 id="organizer-events-heading">Your events</h2>
+        <div id="organizer-events" class="ticket-list" aria-live="polite"></div>
+      </section>
+    </main>
+    <footer class="site-footer"><p>Good times start here.</p></footer>
+  </body>
+</html>

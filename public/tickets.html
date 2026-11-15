@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="View your Gather bookings.">
+    <title>My tickets | Gather</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/pages/tickets.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Gather<span aria-hidden="true">.</span></a>
+      <nav class="site-nav"><a href="/">Browse events</a><a href="/organizer.html">Organizer</a></nav>
+    </header>
+    <main class="page-shell">
+      <section class="intro">
+        <p class="eyebrow">Your plans</p>
+        <h1>My tickets</h1>
+      </section>
+      <p id="tickets-message" class="notice" role="status" aria-live="polite"></p>
+      <div id="tickets" class="ticket-list" aria-live="polite"></div>
+    </main>
+    <footer class="site-footer"><p>Good times start here.</p></footer>
+  </body>
+</html>

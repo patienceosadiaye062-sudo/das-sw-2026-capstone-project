@@ -15,7 +15,7 @@
           "params": [],
           "headers": [
             { "key": "content-type", "value": "application/json", "active": true },
-            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<organizerToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -34,7 +34,7 @@
           "params": [],
           "headers": [
             { "key": "content-type", "value": "application/json", "active": true },
-            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<organizerToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -52,7 +52,7 @@
           "endpoint": "<<baseUrl>>/api/events/<<eventId>>/publish",
           "params": [],
           "headers": [
-            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<organizerToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -67,7 +67,7 @@
           "endpoint": "<<baseUrl>>/api/events/<<eventId>>/unpublish",
           "params": [],
           "headers": [
-            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<organizerToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -82,7 +82,7 @@
           "endpoint": "<<baseUrl>>/api/events/<<eventId>>",
           "params": [],
           "headers": [
-            { "key": "x-user-id", "value": "<<organizerId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<organizerToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -131,7 +131,7 @@
           "params": [],
           "headers": [
             { "key": "content-type", "value": "application/json", "active": true },
-            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<attendeeToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -149,7 +149,7 @@
           "endpoint": "<<baseUrl>>/api/bookings/<<bookingReference>>",
           "params": [],
           "headers": [
-            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<attendeeToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -165,7 +165,7 @@
           "params": [],
           "headers": [
             { "key": "content-type", "value": "application/json", "active": true },
-            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<attendeeToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -181,7 +181,7 @@
           "params": [],
           "headers": [
             { "key": "content-type", "value": "application/json", "active": true },
-            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<attendeeToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",
@@ -199,7 +199,7 @@
           "endpoint": "<<baseUrl>>/api/bookings/<<bookingReference>>/cancel",
           "params": [],
           "headers": [
-            { "key": "x-user-id", "value": "<<attendeeId>>", "active": true }
+            { "key": "Authorization", "value": "Bearer <<attendeeToken>>", "active": true }
           ],
           "preRequestScript": "",
           "testScript": "",

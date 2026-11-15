@@ -7,11 +7,14 @@ import { join } from 'node:path';
 import { SQLiteRepository } from '../src/repositories/sqlite.js';
 import { startServer } from '../src/server.js';
 
+const TOKEN_SECRET = 'test-secret-with-more-than-thirty-two-bytes';
+
 async function startPersistentServer(databasePath) {
   const server = startServer({
     port: 0,
     host: '127.0.0.1',
     repository: new SQLiteRepository({ databasePath }),
+    tokenSecret: TOKEN_SECRET,
   });
   await once(server, 'listening');
   return {
@@ -91,11 +94,22 @@ test('the SQLite-backed API retains events after the server restarts', async () 
     const first = await startPersistentServer(databasePath);
     let eventId;
     try {
+      const signupResponse = await fetch(`${first.baseUrl}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: 'restart-organizer@example.test',
+          password: 'test-password-123',
+          role: 'organizer',
+        }),
+      });
+      assert.equal(signupResponse.status, 201);
+      const { token } = await signupResponse.json();
       const eventResponse = await fetch(`${first.baseUrl}/api/events`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-user-id': 'organizer-1',
+          authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: 'Restart Test Event',
@@ -111,14 +125,14 @@ test('the SQLite-backed API retains events after the server restarts', async () 
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-user-id': 'organizer-1',
+          authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ name: 'General', priceCents: 2500, capacity: 2 }),
       });
       assert.equal(tierResponse.status, 201);
       const publishResponse = await fetch(`${first.baseUrl}/api/events/${eventId}/publish`, {
         method: 'POST',
-        headers: { 'x-user-id': 'organizer-1' },
+        headers: { authorization: `Bearer ${token}` },
       });
       assert.equal(publishResponse.status, 200);
     } finally {

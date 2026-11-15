@@ -14,21 +14,21 @@ try {
         city: 'Lagos',
         venue: 'Civic Centre',
         date: '2027-02-14T17:00:00Z',
-        tier: { name: 'General', priceCents: 2500, capacity: 100 },
+        tier: { name: 'General', priceCents: 250000, capacity: 100 },
       },
       {
         title: 'Abuja Design Forum',
         city: 'Abuja',
         venue: 'Thought Pyramid Art Centre',
         date: '2027-03-08T10:00:00Z',
-        tier: { name: 'Standard', priceCents: 4000, capacity: 75 },
+        tier: { name: 'Standard', priceCents: 400000, capacity: 75 },
       },
       {
         title: 'Port Harcourt Book Fair',
         city: 'Port Harcourt',
         venue: 'The Atrium',
         date: '2027-04-19T11:00:00Z',
-        tier: { name: 'Entry', priceCents: 1500, capacity: 120 },
+        tier: { name: 'Entry', priceCents: 150000, capacity: 120 },
       },
     ];
 

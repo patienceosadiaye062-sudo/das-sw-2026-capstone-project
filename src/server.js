@@ -7,10 +7,15 @@ import { SQLiteRepository } from './repositories/sqlite.js';
 export function startServer({
   port = getConfig().port,
   host = '0.0.0.0',
-  repository = new SQLiteRepository(),
+  repository,
+  tokenSecret = process.env.TOKEN_SECRET,
 } = {}) {
-  const server = createApp({ repository });
-  server.once('close', () => repository.close?.());
+  if (typeof tokenSecret !== 'string' || Buffer.byteLength(tokenSecret) < 32) {
+    throw new Error('Set TOKEN_SECRET to a random value of at least 32 bytes before starting the server.');
+  }
+  const activeRepository = repository ?? new SQLiteRepository();
+  const server = createApp({ repository: activeRepository, tokenSecret });
+  server.once('close', () => activeRepository.close?.());
   server.listen(port, host, () => {
     console.log(`Ticketing server listening on http://${host}:${server.address().port}`);
   });

@@ -4,17 +4,26 @@ import { readFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { createApp } from '../src/http/app.js';
 
+const TOKEN_SECRET = 'test-secret-with-more-than-thirty-two-bytes';
+const identityTokens = new Map();
+
 async function startServer(t, options) {
-  const server = createApp(options);
+  const server = createApp({ ...options, tokenSecret: options?.tokenSecret ?? TOKEN_SECRET });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  t.after(() => new Promise((resolve) => server.close(resolve)));
-  return `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => {
+    for (const key of identityTokens.keys()) {
+      if (key.startsWith(`${baseUrl}:`)) identityTokens.delete(key);
+    }
+    return new Promise((resolve) => server.close(resolve));
+  });
+  return baseUrl;
 }
 
 async function jsonRequest(baseUrl, path, { method = 'GET', userId, body } = {}) {
   const headers = {};
-  if (userId) headers['x-user-id'] = userId;
+  if (userId) headers.authorization = `Bearer ${await tokenFor(baseUrl, userId)}`;
   if (body !== undefined) headers['content-type'] = 'application/json';
   const response = await fetch(`${baseUrl}${path}`, {
     method,
@@ -22,6 +31,25 @@ async function jsonRequest(baseUrl, path, { method = 'GET', userId, body } = {})
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   return { response, body: await response.json() };
+}
+
+async function tokenFor(baseUrl, userId) {
+  const key = `${baseUrl}:${userId}`;
+  if (identityTokens.has(key)) return identityTokens.get(key);
+  const role = userId.startsWith('organizer') ? 'organizer' : 'attendee';
+  const response = await fetch(`${baseUrl}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      email: `${userId}@example.test`,
+      password: 'test-password-123',
+      role,
+    }),
+  });
+  assert.equal(response.status, 201);
+  const result = await response.json();
+  identityTokens.set(key, result.token);
+  return result.token;
 }
 
 async function createPublishedEvent(baseUrl, owner = 'organizer-1', capacity = 3) {
@@ -122,7 +150,7 @@ test('declined payment leaves booking pending and can be retried', async (t) => 
   assert.equal(retry.body.status, 'paid');
 });
 
-test('payment is charged once and only the booking owner can access it', async (t) => {
+test('payment is charged once and another attendee cannot access the booking', async (t) => {
   let charges = 0;
   const paymentGateway = {
     async charge() {
@@ -138,13 +166,13 @@ test('payment is charged once and only the booking owner can access it', async (
     body: { eventId: event.id, tierId: tier.id, quantity: 1 },
   });
 
-  const forbidden = await jsonRequest(baseUrl, `/api/bookings/${booked.body.reference}/pay`, {
+  const hidden = await jsonRequest(baseUrl, `/api/bookings/${booked.body.reference}/pay`, {
     method: 'POST',
     userId: 'attendee-2',
     body: {},
   });
-  assert.equal(forbidden.response.status, 403);
-  assert.equal(forbidden.body.error.code, 'FORBIDDEN');
+  assert.equal(hidden.response.status, 404);
+  assert.equal(hidden.body.error.code, 'NOT_FOUND');
   assert.equal(charges, 0);
 
   await jsonRequest(baseUrl, `/api/bookings/${booked.body.reference}/pay`, {
@@ -159,6 +187,35 @@ test('payment is charged once and only the booking owner can access it', async (
   });
   assert.equal(repeated.body.error.code, 'INVALID_TRANSITION');
   assert.equal(charges, 1);
+});
+
+test('attendees see only their own bookings and organizers cannot change another event', async (t) => {
+  const baseUrl = await startServer(t);
+  const { event, tier } = await createPublishedEvent(baseUrl);
+  const booked = await jsonRequest(baseUrl, '/api/bookings', {
+    method: 'POST',
+    userId: 'attendee-1',
+    body: { eventId: event.id, tierId: tier.id, quantity: 1 },
+  });
+
+  const otherBooking = await jsonRequest(baseUrl, `/api/bookings/${booked.body.reference}`, {
+    userId: 'attendee-2',
+  });
+  assert.equal(otherBooking.response.status, 404);
+  assert.equal(otherBooking.body.error.code, 'NOT_FOUND');
+
+  const ownBookings = await jsonRequest(baseUrl, '/api/bookings', { userId: 'attendee-1' });
+  const otherBookings = await jsonRequest(baseUrl, '/api/bookings', { userId: 'attendee-2' });
+  assert.deepEqual(ownBookings.body.bookings.map(({ reference }) => reference), [booked.body.reference]);
+  assert.deepEqual(otherBookings.body.bookings, []);
+
+  const unauthorizedChange = await jsonRequest(baseUrl, `/api/events/${event.id}/tiers`, {
+    method: 'POST',
+    userId: 'organizer-2',
+    body: { name: 'VIP', priceCents: 5000, capacity: 10 },
+  });
+  assert.equal(unauthorizedChange.response.status, 403);
+  assert.equal(unauthorizedChange.body.error.code, 'FORBIDDEN');
 });
 
 test('cancel releases seats only for the owner and only once', async (t) => {
@@ -243,7 +300,7 @@ test('API returns a consistent JSON error shape for validation and missing ident
   assert.equal(openapi.response.status, 200);
   assert.equal(openapi.body.openapi, '3.0.3');
   assert.equal(openapi.body.servers[0].url, 'http://localhost:3000');
-  assert.equal(openapi.body.components.securitySchemes.userId.name, 'x-user-id');
+  assert.equal(openapi.body.components.securitySchemes.bearerAuth.scheme, 'bearer');
   assert.ok(openapi.body.paths['/api/events'].post.requestBody);
   assert.ok(openapi.body.paths['/api/bookings/{reference}/pay'].post);
 });
@@ -273,7 +330,7 @@ test('Hoppscotch collection and local environment contain the Build 4 API workfl
   ]) {
     assert.ok(requestNames.has(name), `missing Hoppscotch request: ${name}`);
   }
-  for (const key of ['baseUrl', 'organizerId', 'attendeeId', 'eventId', 'tierId', 'bookingReference']) {
+  for (const key of ['baseUrl', 'organizerToken', 'attendeeToken', 'eventId', 'tierId', 'bookingReference']) {
     assert.ok(environmentVariables.has(key), `missing Hoppscotch environment variable: ${key}`);
   }
   assert.ok(requests.every(({ endpoint }) => endpoint.includes('<<baseUrl>>')));

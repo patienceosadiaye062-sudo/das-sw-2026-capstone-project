@@ -1,4 +1,5 @@
 import { createDatabase } from '../db/connection.js';
+import { DomainError } from '../domain/errors.js';
 
 function eventFromRow(row) {
   if (!row) return undefined;
@@ -47,6 +48,36 @@ export class SQLiteRepository {
 
   constructor({ databasePath, database } = {}) {
     this.#database = database ?? createDatabase({ databasePath });
+    const userColumns = new Set(this.#database.prepare('PRAGMA table_info(users)').all().map(({ name }) => name));
+    if (!userColumns.has('email')) this.#database.exec('ALTER TABLE users ADD COLUMN email TEXT');
+    if (!userColumns.has('password_hash')) this.#database.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+    this.#database.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
+      ON users(email) WHERE email IS NOT NULL
+    `);
+  }
+
+  async findUserByEmail(email) {
+    return this.#database.prepare(`
+      SELECT id, email, role, password_hash AS passwordHash
+      FROM users WHERE email = ?
+    `).get(email);
+  }
+
+  async findUserById(id) {
+    return this.#database.prepare(`
+      SELECT id, email, role FROM users WHERE id = ?
+    `).get(id);
+  }
+
+  async saveUser(user) {
+    const result = this.#database.prepare(`
+      INSERT OR IGNORE INTO users (id, email, role, password_hash) VALUES (?, ?, ?, ?)
+    `).run(user.id, user.email, user.role, user.passwordHash);
+    if (Number(result.changes) !== 1) {
+      throw new DomainError('An account with this email already exists.', 'EMAIL_TAKEN');
+    }
+    return { ...user };
   }
 
   async findEventById(id) {
@@ -136,6 +167,25 @@ export class SQLiteRepository {
         payment_reference AS paymentReference
       FROM bookings WHERE reference = ?
     `).get(reference));
+  }
+
+  async listBookingsForUser(userId) {
+    return this.#database.prepare(`
+      SELECT b.id, b.reference, b.event_id AS eventId, b.tier_id AS tierId,
+        b.user_id AS userId, b.quantity, b.total_cents AS totalCents, b.status,
+        b.payment_reference AS paymentReference,
+        e.title AS eventTitle, e.event_date AS eventDate, t.name AS tierName
+      FROM bookings b
+      JOIN events e ON e.id = b.event_id
+      JOIN ticket_tiers t ON t.id = b.tier_id
+      WHERE b.user_id = ?
+      ORDER BY b.rowid DESC
+    `).all(userId).map((row) => ({
+      ...bookingFromRow(row),
+      eventTitle: row.eventTitle,
+      eventDate: row.eventDate,
+      tierName: row.tierName,
+    }));
   }
 
   async saveBooking(booking) {

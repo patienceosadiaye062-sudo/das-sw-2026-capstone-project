@@ -2,13 +2,13 @@ export const openApiDocument = {
   openapi: '3.0.3',
   info: {
     title: 'Event Ticketing API',
-    version: '1.0.0',
-    description: 'Build 4 event ticketing API. Mock payment does not use card details.',
+    version: '2.0.0',
+    description: 'Event Ticketing API. Mock payment does not use card details.',
   },
   servers: [{ url: 'http://localhost:3000' }],
   components: {
     securitySchemes: {
-      userId: { type: 'apiKey', in: 'header', name: 'x-user-id' },
+      bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
     },
     schemas: {
       EventInput: {
@@ -56,6 +56,52 @@ export const openApiDocument = {
     },
   },
   paths: {
+    '/api/auth/signup': {
+      post: {
+        summary: 'Create an attendee, organizer, or staff account',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string', minLength: 8 },
+                  role: { type: 'string', enum: ['attendee', 'organizer', 'staff'] },
+                },
+              },
+            },
+          },
+        },
+        responses: { 201: { description: 'Account created and signed in' }, 409: { description: 'Email already registered' } },
+      },
+    },
+    '/api/auth/login': {
+      post: {
+        summary: 'Log in and receive a signed token',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', required: ['email', 'password'] } } },
+        },
+        responses: { 200: { description: 'Signed in' }, 401: { description: 'Invalid credentials' } },
+      },
+    },
+    '/api/auth/me': {
+      get: {
+        summary: 'Get the current account',
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: 'Current user, without password data' } },
+      },
+    },
+    '/api/organizer/events': {
+      get: {
+        summary: 'List events owned by the current organizer',
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: 'Organizer events' } },
+      },
+    },
     '/api/events': {
       get: {
         summary: 'Search published events',
@@ -81,7 +127,7 @@ export const openApiDocument = {
       },
       post: {
         summary: 'Create an event',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
           content: { 'application/json': { schema: { $ref: '#/components/schemas/EventInput' } } },
@@ -105,7 +151,7 @@ export const openApiDocument = {
     '/api/events/{id}/tiers': {
       post: {
         summary: 'Add a ticket tier',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
         requestBody: {
           required: true,
@@ -117,7 +163,7 @@ export const openApiDocument = {
     '/api/events/{id}/publish': {
       post: {
         summary: 'Publish an event',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Event published' } },
       },
@@ -125,15 +171,20 @@ export const openApiDocument = {
     '/api/events/{id}/unpublish': {
       post: {
         summary: 'Unpublish an event',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Event unpublished' } },
       },
     },
     '/api/bookings': {
+      get: {
+        summary: 'List bookings owned by the current attendee',
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: 'The current attendee bookings' } },
+      },
       post: {
         summary: 'Book tickets',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
           content: { 'application/json': { schema: { $ref: '#/components/schemas/BookingInput' } } },
@@ -144,7 +195,7 @@ export const openApiDocument = {
     '/api/bookings/{reference}': {
       get: {
         summary: 'Get a booking',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ in: 'path', name: 'reference', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Booking details' } },
       },
@@ -152,7 +203,7 @@ export const openApiDocument = {
     '/api/bookings/{reference}/pay': {
       post: {
         summary: 'Pay for a booking with the mock gateway',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ in: 'path', name: 'reference', required: true, schema: { type: 'string' } }],
         requestBody: {
           required: true,
@@ -175,7 +226,7 @@ export const openApiDocument = {
     '/api/bookings/{reference}/cancel': {
       post: {
         summary: 'Cancel an unpaid booking',
-        security: [{ userId: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ in: 'path', name: 'reference', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Booking cancelled' } },
       },

@@ -1,125 +1,111 @@
-import { mockBookings, mockEvents } from './mockData.js';
+import { getToken, setSession } from './session.js';
 
-const MAX_QUANTITY = 10;
-const HOLD_MILLISECONDS = 10 * 60 * 1000;
-const bookingExpiry = new Map();
+async function request(path, { method = 'GET', body, authenticated = true } = {}) {
+  const headers = {};
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  const token = authenticated ? getToken() : undefined;
+  if (token) headers.authorization = `Bearer ${token}`;
 
-function apiError(code, message, status) {
-  return Object.assign(new Error(message), { error: { code, message }, status });
-}
-
-function copy(value) {
-  return structuredClone(value);
-}
-
-function cheapestPrice(event) {
-  return event.tiers.length
-    ? Math.min(...event.tiers.map((tier) => tier.priceCents))
-    : Infinity;
-}
-
-function availability(event) {
-  return event.tiers.reduce((sum, tier) => sum + tier.remaining, 0);
-}
-
-function expireBookings(now = Date.now()) {
-  for (const booking of mockBookings) {
-    if (booking.status !== 'pending' || bookingExpiry.get(booking.reference) > now) continue;
-    const event = mockEvents.find((item) => item.id === booking.eventId);
-    const tier = event?.tiers.find((item) => item.id === booking.tierId);
-    if (tier) {
-      tier.remaining += booking.quantity;
-      tier.sold -= booking.quantity;
-    }
-    booking.status = 'expired';
-    bookingExpiry.delete(booking.reference);
+  let response;
+  try {
+    response = await fetch(path, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new Error(`Could not reach the server: ${error.message}`);
   }
+
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error('The server returned an invalid response.');
+  }
+  if (!response.ok) {
+    const error = new Error(result.error?.message ?? 'The request failed.');
+    error.error = result.error ?? { code: 'REQUEST_FAILED', message: error.message };
+    error.status = response.status;
+    throw error;
+  }
+  return result;
+}
+
+export async function signUp(credentials) {
+  const result = await request('/api/auth/signup', {
+    method: 'POST',
+    body: credentials,
+    authenticated: false,
+  });
+  setSession(result);
+  return result;
+}
+
+export async function logIn(credentials) {
+  const result = await request('/api/auth/login', {
+    method: 'POST',
+    body: credentials,
+    authenticated: false,
+  });
+  setSession(result);
+  return result;
+}
+
+export async function getMe() {
+  return request('/api/auth/me');
 }
 
 export async function listEvents(criteria = {}) {
-  expireBookings();
-  const query = String(criteria.q ?? '').trim().toLocaleLowerCase();
-  const city = String(criteria.city ?? '').trim().toLocaleLowerCase();
-  const maxPriceCents = criteria.maxPriceCents === '' || criteria.maxPriceCents === undefined
-    ? undefined
-    : Number(criteria.maxPriceCents);
-  if (maxPriceCents !== undefined && (!Number.isSafeInteger(maxPriceCents) || maxPriceCents < 0)) {
-    throw apiError('VALIDATION', 'Maximum price must be a non-negative whole number of cents.', 400);
+  const parameters = new URLSearchParams();
+  for (const [key, value] of Object.entries(criteria)) {
+    if (value !== undefined && value !== null && value !== '') {
+      parameters.set(key, String(value));
+    }
   }
-
-  const events = mockEvents
-    .filter((event) => event.status === 'published')
-    .filter((event) => !query ||
-      `${event.title} ${event.venue}`.toLocaleLowerCase().includes(query))
-    .filter((event) => !city || event.city.toLocaleLowerCase() === city)
-    .filter((event) => maxPriceCents === undefined || cheapestPrice(event) <= maxPriceCents)
-    .filter((event) => !criteria.onlyAvailable || availability(event) > 0);
-
-  const sort = criteria.sort ?? 'date';
-  if (!['date', 'price', 'availability'].includes(sort)) {
-    throw apiError('VALIDATION', `Unknown event sort option "${sort}".`, 400);
-  }
-  events.sort((left, right) => {
-    if (sort === 'price') return cheapestPrice(left) - cheapestPrice(right);
-    if (sort === 'availability') return availability(right) - availability(left);
-    return Date.parse(left.date) - Date.parse(right.date);
-  });
-  return { events: copy(events) };
+  const queryString = parameters.toString();
+  const query = queryString ? `?${queryString}` : '';
+  return request(`/api/events${query}`, { authenticated: false });
 }
 
 export async function getEvent(eventId) {
-  expireBookings();
-  const event = mockEvents.find((item) => item.id === eventId && item.status === 'published');
-  if (!event) throw apiError('NOT_FOUND', 'Event was not found.', 404);
-  return copy(event);
+  return request(`/api/events/${encodeURIComponent(eventId)}`, { authenticated: false });
 }
 
-export async function createBooking({ eventId, tierId, quantity }, userId = 'attendee-1') {
-  expireBookings();
-  if (typeof eventId !== 'string' || typeof tierId !== 'string' ||
-      !Number.isSafeInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
-    throw apiError('VALIDATION', `Quantity must be an integer from 1 to ${MAX_QUANTITY}.`, 400);
-  }
-  const event = mockEvents.find((item) => item.id === eventId && item.status === 'published');
-  if (!event) throw apiError('NOT_FOUND', 'Event was not found.', 404);
-  const tier = event.tiers.find((item) => item.id === tierId);
-  if (!tier) throw apiError('NOT_FOUND', 'Ticket tier was not found for this event.', 404);
-  if (tier.remaining < quantity) {
-    throw apiError('SOLD_OUT', `Only ${tier.remaining} ticket(s) left in ${tier.name}.`, 409);
-  }
-
-  tier.remaining -= quantity;
-  tier.sold += quantity;
-  const booking = {
-    id: `booking-${crypto.randomUUID()}`,
-    reference: `GTH-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-    eventId,
-    tierId,
-    userId,
-    quantity,
-    totalCents: tier.priceCents * quantity,
-    status: 'pending',
-  };
-  mockBookings.push(booking);
-  bookingExpiry.set(booking.reference, Date.now() + HOLD_MILLISECONDS);
-  return copy(booking);
+export async function createBooking(input) {
+  return request('/api/bookings', { method: 'POST', body: input });
 }
 
-export async function pay(reference, { decline = false } = {}, userId = 'attendee-1') {
-  expireBookings();
-  const booking = mockBookings.find((item) => item.reference === reference);
-  if (!booking) throw apiError('NOT_FOUND', 'Booking was not found.', 404);
-  if (booking.userId !== userId) throw apiError('FORBIDDEN', 'This booking belongs to another user.', 403);
-  if (booking.status !== 'pending') {
-    throw apiError('INVALID_TRANSITION', `Cannot pay for a ${booking.status} booking.`, 409);
-  }
-  if (typeof decline !== 'boolean') {
-    throw apiError('VALIDATION', 'decline must be a boolean.', 400);
-  }
-  if (decline) throw apiError('PAYMENT_DECLINED', 'The mock payment was declined.', 402);
+export async function pay(reference, { decline = false } = {}) {
+  return request(`/api/bookings/${encodeURIComponent(reference)}/pay`, {
+    method: 'POST',
+    body: { decline },
+  });
+}
 
-  booking.status = 'paid';
-  bookingExpiry.delete(booking.reference);
-  booking.paymentReference = `mock-payment-${crypto.randomUUID()}`;
-  return copy(booking);
+export async function listMyBookings() {
+  return request('/api/bookings');
+}
+
+export async function createEvent(input) {
+  return request('/api/events', { method: 'POST', body: input });
+}
+
+export async function addTicketTier(eventId, input) {
+  return request(`/api/events/${encodeURIComponent(eventId)}/tiers`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function publishEvent(eventId) {
+  return request(`/api/events/${encodeURIComponent(eventId)}/publish`, { method: 'POST' });
+}
+
+export async function unpublishEvent(eventId) {
+  return request(`/api/events/${encodeURIComponent(eventId)}/unpublish`, { method: 'POST' });
+}
+
+export async function listOrganizerEvents() {
+  return request('/api/organizer/events');
 }

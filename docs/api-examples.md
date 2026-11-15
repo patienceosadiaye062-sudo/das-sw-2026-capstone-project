@@ -1,108 +1,98 @@
-# Build 4 API examples
+# API examples
 
-Start the server with `npm start`; these examples use `http://localhost:3000`.
-Until Build 7 adds login, send an `x-user-id` header with every write and with
-private booking reads. Prices are whole cents.
+Start the server with a private signing secret of at least 32 bytes:
 
-## Use Hoppscotch
+```powershell
+$env:TOKEN_SECRET = 'replace-with-a-random-secret-of-at-least-32-bytes'
+npm start
+```
 
-1. Start the API with `npm start`.
-2. In the **Collections** panel, choose **Import** and import
-   [`build-4.collection.json`](./hoppscotch/build-4.collection.json).
-3. In the **Environments** panel, import
-   [`local.environment.json`](./hoppscotch/local.environment.json), then select the
-   **Local** environment.
-4. Run the event requests in order: create, add tier, then publish. Copy each
-   returned `id` into the matching `eventId` or `tierId` environment variable.
-   Then search, create a booking, and copy its `reference` into
-   `bookingReference` before reading, paying, or cancelling it.
-5. To simulate a declined payment, run **Declined payment (retryable)**, then
-   retry with **Pay booking**. Do not send card details; payment is mocked.
+The API listens at `http://localhost:3000`; its OpenAPI document is available at
+`/openapi.json`. Passwords are stored as scrypt hashes. Never send or store card
+details; payments use the mock gateway.
 
-Requests use Hoppscotch environment variables like `<<baseUrl>>`. The API also
-exposes an OpenAPI document at `/openapi.json` for OpenAPI-compatible clients.
+## Sign up and log in
 
-## Create an event
+Create an organizer account:
 
 ```sh
-curl -i -X POST http://localhost:3000/api/events \
+curl -s -X POST http://localhost:3000/api/auth/signup \
   -H 'content-type: application/json' \
-  -H 'x-user-id: organizer-1' \
-  -d '{"title":"Lagos Tech Meetup","city":"Lagos","venue":"Civic Centre","date":"2026-12-05T17:00:00"}'
+  -d '{"email":"organizer@example.test","password":"change-this-password","role":"organizer"}'
 ```
 
-Save the returned event `id`.
-
-## Add a ticket tier
+The response contains a safe `user` object and a signed `token`. Save the token
+for protected requests:
 
 ```sh
-curl -i -X POST http://localhost:3000/api/events/EVENT_ID/tiers \
+TOKEN=paste-the-signed-token-here
+```
+
+Sign up an attendee the same way, using `"role":"attendee"`. Login returns a
+fresh token:
+
+```sh
+curl -s -X POST http://localhost:3000/api/auth/login \
   -H 'content-type: application/json' \
-  -H 'x-user-id: organizer-1' \
-  -d '{"name":"General","priceCents":2500,"capacity":100}'
+  -d '{"email":"organizer@example.test","password":"change-this-password"}'
 ```
 
-Save the returned tier `id`.
+All protected routes use `Authorization: Bearer $TOKEN`. The server enforces the
+account role and event/booking ownership; a client-supplied user id is never
+trusted.
 
-## Publish the event
+## Create, tier, and publish an event
 
 ```sh
-curl -i -X POST http://localhost:3000/api/events/EVENT_ID/publish \
-  -H 'x-user-id: organizer-1'
+curl -s -X POST http://localhost:3000/api/events \
+  -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"title":"Lagos Tech Meetup","city":"Lagos","venue":"Landmark Centre","date":"2026-12-05T17:00:00Z"}'
 ```
 
-## Search published events
+Save the returned event `id`:
 
 ```sh
-curl -i 'http://localhost:3000/api/events?q=meetup&city=lagos&sort=date&maxPriceCents=5000&onlyAvailable=true'
+EVENT_ID=paste-the-id-here
 ```
 
-## Book tickets
+Add a tier, then publish:
 
 ```sh
-curl -i -X POST http://localhost:3000/api/bookings \
-  -H 'content-type: application/json' \
-  -H 'x-user-id: attendee-1' \
-  -d '{"eventId":"EVENT_ID","tierId":"TIER_ID","quantity":2}'
+curl -s -X POST "http://localhost:3000/api/events/$EVENT_ID/tiers" \
+  -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"name":"General","priceCents":500000,"capacity":100}'
+
+curl -s -X POST "http://localhost:3000/api/events/$EVENT_ID/publish" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-Save the returned booking `reference`.
+An organizer can list only their own drafts and published events at
+`GET /api/organizer/events`. Public search and event detail remain unauthenticated.
 
-## Pay with the mock gateway
+## Book and pay (attendee)
 
-The gateway accepts a mock decline flag; it never receives card details.
+Sign in or sign up as an attendee and use that attendee's token:
 
 ```sh
-curl -i -X POST http://localhost:3000/api/bookings/BOOKING_REFERENCE/pay \
-  -H 'content-type: application/json' \
-  -H 'x-user-id: attendee-1' \
-  -d '{}'
+curl -s -X POST http://localhost:3000/api/bookings \
+  -H "Authorization: Bearer $ATTENDEE_TOKEN" -H 'content-type: application/json' \
+  -d "{\"eventId\":\"$EVENT_ID\",\"tierId\":\"$TIER_ID\",\"quantity\":2}"
 ```
 
-To exercise a decline and retry, use `-d '{"decline":true}'`. A decline leaves
-the booking pending.
-
-## Read a booking
+Payment accepts only a mock decline flag, never card details:
 
 ```sh
-curl -i http://localhost:3000/api/bookings/BOOKING_REFERENCE \
-  -H 'x-user-id: attendee-1'
+curl -s -X POST "http://localhost:3000/api/bookings/$REFERENCE/pay" \
+  -H "Authorization: Bearer $ATTENDEE_TOKEN" -H 'content-type: application/json' \
+  -d '{"decline":false}'
 ```
 
-## Cancel an unpaid booking
+Use `{"decline":true}` to simulate a retryable declined payment. `GET
+/api/bookings` returns only the signed-in attendee's bookings. Reading another
+attendee's booking returns `404 NOT_FOUND`, so its existence is not disclosed.
 
-To try this flow, create a second booking and cancel it before paying:
+## Health check
 
 ```sh
-curl -i -X POST http://localhost:3000/api/bookings/BOOKING_REFERENCE/cancel \
-  -H 'x-user-id: attendee-1'
+curl -s http://localhost:3000/health
 ```
-
-## Unpublish an event
-
-```sh
-curl -i -X POST http://localhost:3000/api/events/EVENT_ID/unpublish \
-  -H 'x-user-id: organizer-1'
-```
-
-API errors use the shape `{"error":{"code":"...","message":"..."}}`.
